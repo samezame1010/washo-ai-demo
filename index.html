@@ -744,7 +744,10 @@ async function callGemini(systemPrompt, userMessage) {
       body: JSON.stringify({
         system_instruction: { parts: [{ text: systemPrompt }] },
         contents: [{ role: 'user', parts: [{ text: userMessage }] }],
-        generationConfig: { maxOutputTokens: 1200 }
+        generationConfig: {
+          maxOutputTokens: 1200,
+          thinkingConfig: { thinkingBudget: 0 }
+        }
       })
     }
   );
@@ -844,7 +847,15 @@ function removeTyping() {
 }
 
 function escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function applyMarkdown(s) {
+  // **bold** → <strong>
+  s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  // *italic* （単体）→ <em>
+  s = s.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
+  return s;
 }
 
 function formatAIResponse(text) {
@@ -862,10 +873,11 @@ function formatAIResponse(text) {
   lines.forEach(line => {
     const l = line.trim();
     if (!l) return;
-    if (l.startsWith('・') || l.startsWith('•') || l.startsWith('-') || l.match(/^[①②③④⑤]/)) {
-      html += `<li style="list-style:none;padding:3px 0 3px 14px;position:relative;font-size:12.5px;border-bottom:1px solid #f0f4fa;"><span style="position:absolute;left:0;color:#3d8eff;">›</span>${escHtml(l.replace(/^[・•\-①②③④⑤]\s*/,''))}</li>`;
+    if (l.startsWith('・') || l.startsWith('•') || l.match(/^\*\s+/) || l.startsWith('-') || l.match(/^[①②③④⑤]/)) {
+      const content = applyMarkdown(escHtml(l.replace(/^[・•\-①②③④⑤]\s*|\*\s+/, '')));
+      html += `<li style="list-style:none;padding:3px 0 3px 14px;position:relative;font-size:12.5px;border-bottom:1px solid #f0f4fa;"><span style="position:absolute;left:0;color:#3d8eff;">›</span>${content}</li>`;
     } else {
-      html += `<p style="font-size:12.5px;margin:4px 0;">${escHtml(l)}</p>`;
+      html += `<p style="font-size:12.5px;margin:4px 0;">${applyMarkdown(escHtml(l))}</p>`;
     }
   });
   return html;
@@ -890,7 +902,13 @@ async function sendChat() {
     addMsg('ai', formatAIResponse(reply));
   } catch (e) {
     removeTyping();
-    addMsg('ai', '<span class="answer-tag tag-warn">⚠ エラー</span><br><p style="font-size:12.5px;">APIキーを確認してください。右上の「🔑 キー変更」から再設定できます。</p>');
+    const msg = e.message || '不明なエラー';
+    const isQuota = msg.includes('quota') || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('429');
+    const isKey   = msg.includes('API_KEY') || msg.includes('403') || msg.includes('invalid');
+    let detail = escHtml(msg);
+    if (isQuota) detail = 'APIの無料枠上限に達しました。しばらく待つか、別のAPIキーをお試しください。';
+    if (isKey)   detail = 'APIキーが無効です。右上の「🔑 キー変更」から再入力してください。';
+    addMsg('ai', `<span class="answer-tag tag-warn">⚠ エラー</span><br><p style="font-size:12.5px;">${detail}</p>`);
   }
 
   isLoading = false;
