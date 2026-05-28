@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>和正産業 社内AIアシスタント</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  :root {
+    --navy:      #0f2040;
+    --blue:      #1a5fd4;
+    --blue-mid:  #2979E5;
+    --blue-lt:   #3d8eff;
+    --teal:      #00aa88;
+    --white:     #ffffff;
+    --bg:        #f0f4fa;
+    --bg2:       #e4ecf8;
+    --border:    #c8d8f0;
+    --text:      #0f2040;
+    --text2:     #4a5a7a;
+    --text3:     #8a9ab8;
+    --warn-bg:   #fff4e0;
+    --warn:      #c06000;
+    --danger-bg: #ffeaea;
+    --danger:    #cc2222;
+    --ok-bg:     #e8f5ee;
+    --ok:        #1a8040;
+    --radius:    12px;
+    --shadow:    0 2px 16px rgba(15,32,64,0.10);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans JP', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ===== API KEY SETUP SCREEN ===== */
+  #setup-screen {
+    position: fixed; inset: 0; z-index: 9999;
+    background: var(--navy);
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column;
+    gap: 0;
+    transition: opacity 0.4s;
+  }
+  #setup-screen.hidden { opacity: 0; pointer-events: none; }
+
+  .setup-card {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 16px;
+    padding: 36px 32px;
+    width: min(420px, 90vw);
+    display: flex; flex-direction: column; gap: 18px;
+  }
+  .setup-logo {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 4px;
+  }
+  .setup-logo-box {
+    width: 40px; height: 40px;
+    background: var(--blue-mid);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .setup-logo-box svg { width: 20px; height: 20px; }
+  .setup-title { color: #fff; font-size: 16px; font-weight: 500; }
+  .setup-sub { color: rgba(255,255,255,0.5); font-size: 12px; }
+  .setup-desc {
+    color: rgba(255,255,255,0.65);
+    font-size: 12.5px;
+    line-height: 1.7;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    padding-top: 16px;
+  }
+  .setup-label {
+    color: rgba(255,255,255,0.55);
+    font-size: 11px;
+    margin-bottom: 6px;
+    display: block;
+  }
+  #api-key-input {
+    width: 100%;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    font-family: 'IBM Plex Mono', monospace;
+    color: #fff;
+    outline: none;
+    transition: border-color 0.15s;
+    letter-spacing: 0.03em;
+  }
+  #api-key-input::placeholder { color: rgba(255,255,255,0.25); letter-spacing: 0; }
+  #api-key-input:focus { border-color: var(--blue-lt); }
+  .setup-error {
+    color: #ff8080;
+    font-size: 11px;
+    display: none;
+    margin-top: -10px;
+  }
+  #start-btn {
+    width: 100%;
+    background: var(--blue-mid);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 13px; font-weight: 500;
+    font-family: 'Noto Sans JP', sans-serif;
+    cursor: pointer;
+    transition: background 0.15s;
+    margin-top: 4px;
+  }
+  #start-btn:hover { background: var(--blue); }
+  .setup-note {
+    color: rgba(255,255,255,0.3);
+    font-size: 10.5px;
+    text-align: center;
+    line-height: 1.6;
+  }
+
+  /* ===== HEADER ===== */
+  header {
+    background: var(--navy);
+    padding: 0 20px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .header-left { display: flex; align-items: center; gap: 12px; }
+  .logo-box {
+    width: 32px; height: 32px;
+    background: var(--blue-mid);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .logo-box svg { width: 16px; height: 16px; }
+  .header-title { color: #fff; font-size: 14px; font-weight: 500; }
+  .header-sub { color: rgba(255,255,255,0.45); font-size: 11px; }
+  .header-right { display: flex; align-items: center; gap: 10px; }
+  .header-badge {
+    background: rgba(0,170,136,0.2);
+    color: var(--teal);
+    font-size: 10px; font-weight: 500;
+    padding: 3px 10px; border-radius: 20px;
+    border: 1px solid rgba(0,170,136,0.3);
+  }
+  .key-reset-btn {
+    background: rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.45);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-size: 10px;
+    cursor: pointer;
+    font-family: 'Noto Sans JP', sans-serif;
+    transition: all 0.15s;
+  }
+  .key-reset-btn:hover { color: rgba(255,255,255,0.8); background: rgba(255,255,255,0.14); }
+
+  /* ===== TAB BAR ===== */
+  .tab-bar {
+    background: var(--navy);
+    padding: 0 20px;
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    flex-shrink: 0;
+  }
+  .tab-btn {
+    color: rgba(255,255,255,0.45);
+    font-size: 12px; font-weight: 500;
+    padding: 10px 16px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+    background: none; border-top: none; border-left: none; border-right: none;
+    font-family: 'Noto Sans JP', sans-serif;
+  }
+  .tab-btn.active {
+    color: #fff;
+    border-bottom-color: var(--blue-lt);
+  }
+  .tab-btn:hover:not(.active) { color: rgba(255,255,255,0.7); }
+
+  /* ===== MAIN ===== */
+  main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    max-width: 780px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 0;
+  }
+
+  /* ===== PAGES ===== */
+  .page { display: none; flex-direction: column; flex: 1; }
+  .page.active { display: flex; }
+
+  /* ===== CHAT ===== */
+  .chat-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 20px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .welcome-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+  }
+  .welcome-title {
+    font-size: 14px; font-weight: 500;
+    color: var(--navy);
+    margin-bottom: 10px;
+  }
+  .quick-btns {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    margin-top: 12px;
+  }
+  .quick-btn {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 11px;
+    color: var(--text2);
+    cursor: pointer;
+    font-family: 'Noto Sans JP', sans-serif;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .quick-btn:hover {
+    background: var(--bg2);
+    border-color: var(--blue-mid);
+    color: var(--blue-mid);
+  }
+
+  .msg { display: flex; gap: 10px; align-items: flex-end; }
+  .msg.user { justify-content: flex-end; }
+  .msg.ai { justify-content: flex-start; }
+
+  .ai-icon {
+    width: 28px; height: 28px; flex-shrink: 0;
+    background: var(--blue-mid);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    align-self: flex-start;
+  }
+  .ai-icon svg { width: 14px; height: 14px; }
+
+  .bubble {
+    max-width: 82%;
+    padding: 11px 14px;
+    border-radius: 14px;
+    font-size: 13px;
+    line-height: 1.65;
+  }
+  .msg.user .bubble {
+    background: var(--blue-mid);
+    color: #fff;
+    border-bottom-right-radius: 4px;
+  }
+  .msg.ai .bubble {
+    background: var(--white);
+    color: var(--text);
+    border-bottom-left-radius: 4px;
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 6px rgba(15,32,64,0.07);
+  }
+
+  .answer-tag {
+    display: inline-block;
+    font-size: 10px; font-weight: 500;
+    padding: 2px 9px; border-radius: 4px;
+    margin-bottom: 7px;
+  }
+  .tag-danger { background: var(--danger-bg); color: var(--danger); }
+  .tag-warn   { background: var(--warn-bg);   color: var(--warn);   }
+  .tag-ok     { background: var(--ok-bg);     color: var(--ok);     }
+  .tag-info   { background: var(--bg2);       color: var(--blue);   }
+
+  .answer-list { margin: 6px 0 0; padding-left: 0; list-style: none; }
+  .answer-list li {
+    padding: 4px 0 4px 16px;
+    position: relative;
+    font-size: 12.5px;
+    border-bottom: 1px solid var(--bg);
+  }
+  .answer-list li:last-child { border-bottom: none; }
+  .answer-list li::before { content: '›'; position: absolute; left: 0; color: var(--blue-lt); }
+
+  .mail-output {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-top: 8px;
+    font-size: 12px;
+    line-height: 1.7;
+    font-family: 'IBM Plex Mono', monospace;
+    white-space: pre-wrap;
+    color: var(--text2);
+  }
+
+  .typing {
+    display: flex; gap: 4px; align-items: center;
+    padding: 10px 14px;
+  }
+  .typing span {
+    width: 6px; height: 6px;
+    background: var(--blue-lt);
+    border-radius: 50%;
+    animation: bounce 1.2s infinite;
+  }
+  .typing span:nth-child(2) { animation-delay: 0.2s; }
+  .typing span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce {
+    0%,80%,100% { transform: translateY(0); }
+    40% { transform: translateY(-6px); }
+  }
+
+  /* ===== 入力エリア ===== */
+  .input-area {
+    background: var(--white);
+    border-top: 1px solid var(--border);
+    padding: 12px 16px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+    flex-shrink: 0;
+  }
+  .input-wrap {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    transition: border-color 0.15s;
+  }
+  .input-wrap:focus-within { border-color: var(--blue-mid); }
+  #chat-input {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    font-size: 13px;
+    font-family: 'Noto Sans JP', sans-serif;
+    color: var(--text);
+    padding: 10px 0;
+    resize: none;
+    min-height: 40px;
+    max-height: 120px;
+  }
+  #chat-input::placeholder { color: var(--text3); }
+  .send-btn {
+    width: 40px; height: 40px; flex-shrink: 0;
+    background: var(--blue-mid);
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+  .send-btn:hover { background: var(--blue); transform: scale(1.05); }
+  .send-btn:disabled { background: var(--border); cursor: not-allowed; transform: none; }
+  .send-btn svg { width: 16px; height: 16px; }
+
+  /* ===== 商品検索ページ ===== */
+  .page-body { padding: 20px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; flex: 1; }
+  .form-section {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    box-shadow: var(--shadow);
+  }
+  .form-title { font-size: 14px; font-weight: 500; margin-bottom: 12px; color: var(--navy); }
+  .form-label { font-size: 11px; color: var(--text2); margin-bottom: 5px; display: block; }
+  .form-input, .form-select, .form-textarea {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 12.5px;
+    font-family: 'Noto Sans JP', sans-serif;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+    margin-bottom: 10px;
+  }
+  .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--blue-mid); }
+  .form-textarea { resize: vertical; min-height: 80px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .action-btn {
+    width: 100%;
+    background: var(--blue-mid);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 11px;
+    font-size: 13px; font-weight: 500;
+    font-family: 'Noto Sans JP', sans-serif;
+    cursor: pointer;
+    transition: background 0.15s;
+    margin-top: 4px;
+  }
+  .action-btn:hover { background: var(--blue); }
+  .action-btn.teal { background: var(--teal); }
+  .action-btn.teal:hover { background: #008866; }
+
+  .result-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .result-header {
+    background: var(--navy);
+    color: #fff;
+    padding: 10px 16px;
+    font-size: 12px; font-weight: 500;
+  }
+  .result-body { padding: 14px 16px; }
+  .result-item {
+    display: flex; gap: 10px; align-items: flex-start;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--bg);
+  }
+  .result-item:last-child { border-bottom: none; }
+  .result-rank {
+    width: 22px; height: 22px; flex-shrink: 0;
+    background: var(--blue-mid);
+    color: #fff;
+    border-radius: 6px;
+    font-size: 11px; font-weight: 500;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .result-info .product-name { font-size: 13px; font-weight: 500; }
+  .result-info .product-desc { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+  /* ===== メール生成ページ ===== */
+  .mail-preview {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .mail-preview-header {
+    background: var(--bg2);
+    padding: 10px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .mail-preview-title { font-size: 12px; font-weight: 500; color: var(--text2); }
+  .copy-btn {
+    background: var(--blue-mid);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 5px 14px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: 'Noto Sans JP', sans-serif;
+    transition: background 0.15s;
+  }
+  .copy-btn:hover { background: var(--blue); }
+  .mail-preview-body {
+    padding: 16px;
+    font-size: 12.5px;
+    line-height: 1.8;
+    color: var(--text);
+    white-space: pre-wrap;
+    font-family: 'Noto Sans JP', sans-serif;
+    min-height: 200px;
+  }
+  .mail-subject {
+    padding: 10px 16px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    font-size: 12px; color: var(--text2);
+  }
+  .mail-subject strong { color: var(--text); }
+
+  .loading-bar {
+    height: 3px;
+    background: linear-gradient(90deg, var(--blue-mid) 0%, var(--teal) 100%);
+    border-radius: 2px;
+    animation: loading 1.2s ease-in-out infinite alternate;
+    margin: 8px 0;
+  }
+  @keyframes loading { from { width: 30%; } to { width: 95%; } }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  @media (max-width: 480px) {
+    .form-row { grid-template-columns: 1fr; }
+    .tab-btn { padding: 10px 10px; font-size: 11px; }
+    .quick-btns { gap: 6px; }
+    .quick-btn { font-size: 10px; padding: 5px 10px; }
+    .setup-card { padding: 28px 20px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== API KEY SETUP SCREEN ===== -->
+<div id="setup-screen">
+  <div class="setup-card">
+    <div class="setup-logo">
+      <div class="setup-logo-box">
+        <svg viewBox="0 0 20 20" fill="none"><rect x="2" y="2" width="7" height="7" rx="1.5" fill="white"/><rect x="11" y="2" width="7" height="7" rx="1.5" fill="white" opacity="0.6"/><rect x="2" y="11" width="7" height="7" rx="1.5" fill="white" opacity="0.6"/><rect x="11" y="11" width="7" height="7" rx="1.5" fill="white"/></svg>
+      </div>
+      <div>
+        <div class="setup-title">和正産業 社内AIアシスタント</div>
+        <div class="setup-sub">Powered by APS（M&amp;N）</div>
+      </div>
+    </div>
+    <div class="setup-desc">
+      このデモアプリはGoogle Gemini APIを使用します。<br>
+      お手元のAPIキーを入力してスタートしてください。<br>
+      キーはこのセッション中のみブラウザに保持されます。
+    </div>
+    <div>
+      <label class="setup-label" for="api-key-input">Gemini APIキー</label>
+      <input id="api-key-input" type="password" placeholder="AIzaSy..." autocomplete="off"
+        onkeydown="if(event.key==='Enter') startApp()">
+      <div class="setup-error" id="setup-error">APIキーを入力してください</div>
+    </div>
+    <button id="start-btn" onclick="startApp()">デモを開始する →</button>
+    <div class="setup-note">
+      APIキーは外部に送信されません。Google Gemini APIへの直接通信のみに使用されます。
+    </div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header>
+  <div class="header-left">
+    <div class="logo-box">
+      <svg viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="5" height="5" rx="1" fill="white"/><rect x="9" y="2" width="5" height="5" rx="1" fill="white" opacity="0.6"/><rect x="2" y="9" width="5" height="5" rx="1" fill="white" opacity="0.6"/><rect x="9" y="9" width="5" height="5" rx="1" fill="white"/></svg>
+    </div>
+    <div>
+      <div class="header-title">和正産業 社内AIアシスタント</div>
+      <div class="header-sub">Powered by APS（M&amp;N）</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <button class="key-reset-btn" onclick="resetKey()">🔑 キー変更</button>
+    <div class="header-badge">● 稼働中</div>
+  </div>
+</header>
+
+<!-- TAB BAR -->
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('chat', event)">💬 SDS即答・相談</button>
+  <button class="tab-btn" onclick="switchTab('propose', event)">📦 商品提案</button>
+  <button class="tab-btn" onclick="switchTab('mail', event)">✉️ メール生成</button>
+</div>
+
+<!-- ===== PAGE: CHAT ===== -->
+<main>
+<div class="page active" id="page-chat" style="height: calc(100vh - 104px);">
+  <div class="chat-area" id="chat-area">
+    <div class="welcome-card">
+      <div class="welcome-title">こんにちは！和正産業専用AIアシスタントです。</div>
+      <div style="font-size: 12px; color: var(--text2); line-height: 1.7;">
+        化学薬品の安全情報・取り扱い方法・商品提案など、何でも聞いてください。<br>
+        SDS情報・混合禁止・保管方法は特に得意です。
+      </div>
+      <div class="quick-btns">
+        <button class="quick-btn" onclick="sendQuick('次亜塩素酸ソーダとアンモニアを混ぜたら危険ですか？')">⚠️ 次亜塩素酸ソーダ＋アンモニア</button>
+        <button class="quick-btn" onclick="sendQuick('苛性ソーダの保管方法と注意点を教えてください')">📦 苛性ソーダの保管方法</button>
+        <button class="quick-btn" onclick="sendQuick('硫酸の取り扱い時に必要な保護具は何ですか？')">🧤 硫酸の保護具</button>
+        <button class="quick-btn" onclick="sendQuick('排水処理で汚泥が多くて困っている工場に提案できる商品は？')">🏭 汚泥処理の提案</button>
+        <button class="quick-btn" onclick="sendQuick('食品工場向けに使える除菌・洗浄剤を教えてください')">🍽️ 食品工場向け除菌剤</button>
+      </div>
+    </div>
+  </div>
+  <div class="input-area">
+    <div class="input-wrap">
+      <textarea id="chat-input" placeholder="質問を入力してください（例：次亜塩素酸ソーダの保管温度は？）" rows="1"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}"
+        oninput="autoResize(this)"></textarea>
+    </div>
+    <button class="send-btn" id="send-btn" onclick="sendChat()">
+      <svg viewBox="0 0 16 16" fill="none"><path d="M2 8L14 2L10 8L14 14L2 8Z" fill="white"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- ===== PAGE: PROPOSE ===== -->
+<div class="page" id="page-propose" style="height: calc(100vh - 104px);">
+  <div class="page-body" id="propose-body">
+    <div class="form-section">
+      <div class="form-title">商品提案アシスタント</div>
+      <label class="form-label">お客様の業種</label>
+      <select class="form-select" id="p-industry">
+        <option value="">選択してください</option>
+        <option value="食品製造工場">食品製造工場</option>
+        <option value="化学工場">化学工場</option>
+        <option value="金属加工工場">金属加工工場</option>
+        <option value="繊維・染色工場">繊維・染色工場</option>
+        <option value="製紙・パルプ工場">製紙・パルプ工場</option>
+        <option value="水処理施設（自治体）">水処理施設（自治体）</option>
+        <option value="廃棄物処理施設">廃棄物処理施設</option>
+        <option value="ビル・施設管理">ビル・施設管理</option>
+        <option value="その他製造業">その他製造業</option>
+      </select>
+      <label class="form-label">お客様が抱えている課題・困っていること</label>
+      <textarea class="form-textarea" id="p-problem" placeholder="例：排水処理の汚泥が増えてコストがかかっている&#10;例：配管のスケール（石灰）が詰まっている&#10;例：食品ラインの除菌をもっと効果的にしたい"></textarea>
+      <div class="form-row">
+        <div>
+          <label class="form-label">予算感</label>
+          <select class="form-select" id="p-budget">
+            <option value="">特になし</option>
+            <option value="できるだけ安く">できるだけ安く</option>
+            <option value="コスパ重視">コスパ重視</option>
+            <option value="品質重視（予算あり）">品質重視（予算あり）</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">緊急度</label>
+          <select class="form-select" id="p-urgency">
+            <option value="通常">通常</option>
+            <option value="急ぎ（今週中）">急ぎ（今週中）</option>
+            <option value="少し急ぎ">少し急ぎ</option>
+          </select>
+        </div>
+      </div>
+      <button class="action-btn" onclick="runPropose()">最適商材を提案する →</button>
+    </div>
+    <div id="propose-result" style="display:none;"></div>
+  </div>
+</div>
+
+<!-- ===== PAGE: MAIL ===== -->
+<div class="page" id="page-mail" style="height: calc(100vh - 104px);">
+  <div class="page-body" id="mail-body">
+    <div class="form-section">
+      <div class="form-title">営業メール自動生成</div>
+      <label class="form-label">宛先会社名</label>
+      <input class="form-input" id="m-company" type="text" placeholder="例：サントリー株式会社、大阪市役所">
+      <div class="form-row">
+        <div>
+          <label class="form-label">担当者名（任意）</label>
+          <input class="form-input" id="m-person" type="text" placeholder="例：田中様">
+        </div>
+        <div>
+          <label class="form-label">メールの種類</label>
+          <select class="form-select" id="m-type">
+            <option value="新規提案">新規提案</option>
+            <option value="お礼メール">お礼メール</option>
+            <option value="フォローアップ">フォローアップ</option>
+            <option value="問い合わせへの返信">問い合わせへの返信</option>
+            <option value="定期連絡">定期連絡</option>
+          </select>
+        </div>
+      </div>
+      <label class="form-label">提案・連絡したい内容</label>
+      <textarea class="form-textarea" id="m-content" placeholder="例：排水処理向けに高分子凝集剤を提案したい&#10;例：先日の訪問のお礼と次回アポの打診&#10;例：次亜塩素酸ソーダの価格改定のご案内"></textarea>
+      <label class="form-label">トーン</label>
+      <select class="form-select" id="m-tone">
+        <option value="丁寧・標準">丁寧・標準</option>
+        <option value="より丁寧（初回・重要先）">より丁寧（初回・重要先）</option>
+        <option value="やや親しみやすく（既存顧客）">やや親しみやすく（既存顧客）</option>
+      </select>
+      <button class="action-btn teal" onclick="runMail()">メール文を生成する →</button>
+    </div>
+    <div id="mail-result" style="display:none;"></div>
+  </div>
+</div>
+</main>
+
+<script>
+// ===== APIキー管理 =====
+function getApiKey() {
+  return sessionStorage.getItem('gemini_api_key') || '';
+}
+
+function startApp() {
+  const key = document.getElementById('api-key-input').value.trim();
+  const errEl = document.getElementById('setup-error');
+  if (!key) {
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+  sessionStorage.setItem('gemini_api_key', key);
+  const screen = document.getElementById('setup-screen');
+  screen.classList.add('hidden');
+  setTimeout(() => screen.style.display = 'none', 400);
+}
+
+function resetKey() {
+  sessionStorage.removeItem('gemini_api_key');
+  document.getElementById('api-key-input').value = '';
+  const screen = document.getElementById('setup-screen');
+  screen.style.display = 'flex';
+  screen.classList.remove('hidden');
+}
+
+// 既にキーがある場合はセットアップ画面をスキップ
+window.addEventListener('DOMContentLoaded', () => {
+  if (getApiKey()) {
+    const screen = document.getElementById('setup-screen');
+    screen.style.display = 'none';
+  }
+});
+
+// ===== Gemini API呼び出し =====
+async function callGemini(systemPrompt, userMessage) {
+  const key = getApiKey();
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: systemPrompt }] },
+        contents: [{ role: 'user', parts: [{ text: userMessage }] }],
+        generationConfig: { maxOutputTokens: 1200 }
+      })
+    }
+  );
+  const data = await response.json();
+  if (data.error) throw new Error(data.error.message);
+  return data.candidates[0].content.parts[0].text;
+}
+
+// ===== システムプロンプト =====
+const SDS_SYSTEM = `あなたは和正産業株式会社の社内AIアシスタントです。
+和正産業は1948年創業の化学薬品・食品添加物・産業機械の専門商社です（大阪・和歌山2拠点）。
+
+主な取扱品目：
+【化学薬品類】苛性ソーダ、次亜塩素酸ソーダ、塩素酸ソーダ、硫酸、塩酸、リン酸、酢酸、高分子凝集剤、PAC、硫酸バンド、活性炭、硫酸第一鉄、塩化第二鉄、過酸化水素、アンモニア水、メタノール、IPA、消石灰、生石灰、重炭酸ソーダ、炭酸カルシウム、塩化カルシウム、水酸化マグネシウム、重金属処理剤、消泡剤、ボイラー薬品 など100種超
+【食品添加物】グルタミン酸ソーダ、各種天然色素、各種天然香料、食塩
+【産業機械】ベルトプレス脱水機、薬注ポンプ、薬注タンク、ルーツブロワー、各種フィルター
+【廃棄物処理】廃酸・廃アルカリ処理、汚泥処理
+
+主な納入先：サントリー、グンゼ、住友電工、大阪市役所、大阪府水道部、各市町村役場、ノーベル製菓、コクヨ など
+
+回答ルール：
+1. 安全・危険に関する質問には必ず冒頭に「【⚠️ 危険】」「【注意】」「【安全】」のいずれかを付ける
+2. 混合禁止の組み合わせは必ず明確に警告する
+3. 商品提案は和正産業の取扱品目の中から行う
+4. 分からないことは「確認が必要です」と正直に答える
+5. 回答は日本語で、現場で使いやすい簡潔な言葉で書く
+6. 回答の末尾に「詳細は担当営業までお問い合わせください」は不要
+7. 箇条書きで整理して読みやすくする`;
+
+const PROPOSE_SYSTEM = `あなたは和正産業株式会社の熟練営業担当AIです。
+取扱品目から最適な商材を提案してください。
+
+取扱品目（主要）：
+苛性ソーダ、次亜塩素酸ソーダ、硫酸、塩酸、高分子凝集剤、PAC、硫酸バンド、活性炭、硫酸第一鉄、塩化第二鉄、過酸化水素、消石灰、生石灰、重炭酸ソーダ、水酸化マグネシウム、重金属処理剤、消泡剤、ボイラー薬品、IPA、メタノール、グルタミン酸ソーダ、天然色素、ベルトプレス脱水機、薬注ポンプ、ルーツブロワー、各種フィルター
+
+以下のJSON形式だけで返答してください（前後の説明不要）：
+{
+  "products": [
+    {"rank": 1, "name": "商品名", "reason": "推奨理由（1〜2文）", "usage": "具体的な使い方"},
+    {"rank": 2, "name": "商品名", "reason": "推奨理由（1〜2文）", "usage": "具体的な使い方"},
+    {"rank": 3, "name": "商品名", "reason": "推奨理由（1〜2文）", "usage": "具体的な使い方"}
+  ],
+  "point": "この顧客への提案で特に強調すべきポイント（1〜2文）"
+}`;
+
+const MAIL_SYSTEM = `あなたは和正産業株式会社の営業担当です。
+会社情報：
+・会社名：和正産業株式会社
+・所在地：大阪・和歌山2拠点
+・業種：化学薬品・食品添加物・産業機械の専門商社
+・創業：1948年
+
+自然で読みやすい営業メールを生成してください。
+以下のJSON形式だけで返答してください（前後の説明不要）：
+{
+  "subject": "件名",
+  "body": "メール本文（署名の手前まで）"
+}`;
+
+// ===== チャット機能 =====
+let isLoading = false;
+const chatArea = document.getElementById('chat-area');
+
+function addMsg(role, content) {
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+  if (role === 'ai') {
+    div.innerHTML = `
+      <div class="ai-icon">
+        <svg viewBox="0 0 14 14" fill="none"><rect x="1" y="1" width="4" height="4" rx="0.8" fill="white"/><rect x="9" y="1" width="4" height="4" rx="0.8" fill="white" opacity="0.6"/><rect x="1" y="9" width="4" height="4" rx="0.8" fill="white" opacity="0.6"/><rect x="9" y="9" width="4" height="4" rx="0.8" fill="white"/></svg>
+      </div>
+      <div class="bubble">${content}</div>`;
+  } else {
+    div.innerHTML = `<div class="bubble">${escHtml(content)}</div>`;
+  }
+  chatArea.appendChild(div);
+  chatArea.scrollTop = chatArea.scrollHeight;
+  return div;
+}
+
+function addTyping() {
+  const div = document.createElement('div');
+  div.className = 'msg ai';
+  div.id = 'typing-indicator';
+  div.innerHTML = `
+    <div class="ai-icon">
+      <svg viewBox="0 0 14 14" fill="none"><rect x="1" y="1" width="4" height="4" rx="0.8" fill="white"/><rect x="9" y="1" width="4" height="4" rx="0.8" fill="white" opacity="0.6"/><rect x="1" y="9" width="4" height="4" rx="0.8" fill="white" opacity="0.6"/><rect x="9" y="9" width="4" height="4" rx="0.8" fill="white"/></svg>
+    </div>
+    <div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div>`;
+  chatArea.appendChild(div);
+  chatArea.scrollTop = chatArea.scrollHeight;
+}
+
+function removeTyping() {
+  const el = document.getElementById('typing-indicator');
+  if (el) el.remove();
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+
+function formatAIResponse(text) {
+  let html = '';
+  if (text.includes('【⚠️ 危険】') || (text.includes('危険') && text.includes('有毒'))) {
+    html += '<span class="answer-tag tag-danger">⚠️ 危険・注意</span><br>';
+  } else if (text.includes('【注意】') || text.includes('注意が必要')) {
+    html += '<span class="answer-tag tag-warn">⚠ 注意</span><br>';
+  } else if (text.includes('提案') || text.includes('おすすめ') || text.includes('適してい')) {
+    html += '<span class="answer-tag tag-ok">✓ 提案</span><br>';
+  } else {
+    html += '<span class="answer-tag tag-info">ℹ 回答</span><br>';
+  }
+  const lines = text.replace(/【[^】]+】/g, '').trim().split('\n');
+  lines.forEach(line => {
+    const l = line.trim();
+    if (!l) return;
+    if (l.startsWith('・') || l.startsWith('•') || l.startsWith('-') || l.match(/^[①②③④⑤]/)) {
+      html += `<li style="list-style:none;padding:3px 0 3px 14px;position:relative;font-size:12.5px;border-bottom:1px solid #f0f4fa;"><span style="position:absolute;left:0;color:#3d8eff;">›</span>${escHtml(l.replace(/^[・•\-①②③④⑤]\s*/,''))}</li>`;
+    } else {
+      html += `<p style="font-size:12.5px;margin:4px 0;">${escHtml(l)}</p>`;
+    }
+  });
+  return html;
+}
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text || isLoading) return;
+
+  input.value = '';
+  autoResize(input);
+  isLoading = true;
+  document.getElementById('send-btn').disabled = true;
+
+  addMsg('user', text);
+  addTyping();
+
+  try {
+    const reply = await callGemini(SDS_SYSTEM, text);
+    removeTyping();
+    addMsg('ai', formatAIResponse(reply));
+  } catch (e) {
+    removeTyping();
+    addMsg('ai', '<span class="answer-tag tag-warn">⚠ エラー</span><br><p style="font-size:12.5px;">APIキーを確認してください。右上の「🔑 キー変更」から再設定できます。</p>');
+  }
+
+  isLoading = false;
+  document.getElementById('send-btn').disabled = false;
+  chatArea.scrollTop = chatArea.scrollHeight;
+}
+
+function sendQuick(text) {
+  document.getElementById('chat-input').value = text;
+  sendChat();
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+// ===== タブ切り替え =====
+function switchTab(tab, ev) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  if (ev && ev.target) ev.target.classList.add('active');
+  document.getElementById('page-' + tab).classList.add('active');
+}
+
+// ===== 商品提案 =====
+async function runPropose() {
+  const industry = document.getElementById('p-industry').value;
+  const problem = document.getElementById('p-problem').value.trim();
+  const budget = document.getElementById('p-budget').value;
+  const urgency = document.getElementById('p-urgency').value;
+
+  if (!industry || !problem) {
+    alert('業種と課題を入力してください');
+    return;
+  }
+
+  const resultEl = document.getElementById('propose-result');
+  resultEl.style.display = 'block';
+  resultEl.innerHTML = `
+    <div class="result-card">
+      <div class="result-header">AIが最適商材を検索中...</div>
+      <div class="result-body"><div class="loading-bar"></div><p style="font-size:12px;color:var(--text3);margin-top:8px;">和正産業の取扱品目から最適な商材を選定しています...</p></div>
+    </div>`;
+  document.getElementById('propose-body').scrollTop = 9999;
+
+  const prompt = `業種：${industry}\n課題・困っていること：${problem}\n予算：${budget}\n緊急度：${urgency}`;
+
+  try {
+    const reply = await callGemini(PROPOSE_SYSTEM, prompt);
+    const data = JSON.parse(reply.replace(/```json|```/g,'').trim());
+
+    let html = `<div class="result-card">
+      <div class="result-header">✓ 提案商材 — ${industry}向け</div>
+      <div class="result-body">`;
+
+    data.products.forEach(p => {
+      html += `<div class="result-item">
+        <div class="result-rank">${p.rank}</div>
+        <div class="result-info">
+          <div class="product-name">${p.name}</div>
+          <div class="product-desc">${p.reason}</div>
+          <div style="font-size:11px;color:var(--blue-mid);margin-top:3px;">使い方：${p.usage}</div>
+        </div>
+      </div>`;
+    });
+
+    html += `<div style="background:var(--bg2);border-radius:8px;padding:10px 12px;margin-top:8px;">
+      <div style="font-size:11px;font-weight:500;color:var(--navy);margin-bottom:4px;">提案ポイント</div>
+      <div style="font-size:12px;color:var(--text2);">${data.point}</div>
+    </div>`;
+    html += `</div></div>`;
+
+    resultEl.innerHTML = html;
+  } catch (e) {
+    resultEl.innerHTML = `<div class="result-card"><div class="result-header" style="background:#cc2222;">エラー</div><div class="result-body"><p style="font-size:12px;">もう一度お試しください。</p></div></div>`;
+  }
+  document.getElementById('propose-body').scrollTop = 9999;
+}
+
+// ===== メール生成 =====
+async function runMail() {
+  const company = document.getElementById('m-company').value.trim();
+  const person  = document.getElementById('m-person').value.trim();
+  const type    = document.getElementById('m-type').value;
+  const content = document.getElementById('m-content').value.trim();
+  const tone    = document.getElementById('m-tone').value;
+
+  if (!company || !content) {
+    alert('宛先会社名と内容を入力してください');
+    return;
+  }
+
+  const resultEl = document.getElementById('mail-result');
+  resultEl.style.display = 'block';
+  resultEl.innerHTML = `<div class="mail-preview">
+    <div class="mail-preview-header"><div class="mail-preview-title">メール文を生成中...</div></div>
+    <div class="result-body"><div class="loading-bar"></div></div>
+  </div>`;
+  document.getElementById('mail-body').scrollTop = 9999;
+
+  const prompt = `宛先：${company}${person ? ' ' + person : ''}\nメール種類：${type}\n内容：${content}\nトーン：${tone}`;
+
+  try {
+    const reply = await callGemini(MAIL_SYSTEM, prompt);
+    const data = JSON.parse(reply.replace(/```json|```/g,'').trim());
+
+    const signature = `\n\n---\n和正産業株式会社\n担当：實島 賢\nTEL: 06-6450-5237\ninfo@mandnp.co.jp`;
+    const fullBody = data.body + signature;
+
+    resultEl.innerHTML = `
+      <div class="mail-preview">
+        <div class="mail-preview-header">
+          <div class="mail-preview-title">✓ メール生成完了</div>
+          <button class="copy-btn" onclick="copyMail()">コピー</button>
+        </div>
+        <div class="mail-subject">件名：<strong>${data.subject}</strong></div>
+        <div class="mail-preview-body" id="mail-body-text">${escHtml(fullBody)}</div>
+      </div>
+      <p style="font-size:11px;color:var(--text3);margin-top:8px;padding:0 4px;">※ 内容を確認してから送信してください</p>`;
+  } catch (e) {
+    resultEl.innerHTML = `<div class="mail-preview"><div class="mail-preview-header"><div class="mail-preview-title">エラー</div></div><div class="result-body"><p style="font-size:12px;padding:12px;">もう一度お試しください。</p></div></div>`;
+  }
+  document.getElementById('mail-body').scrollTop = 9999;
+}
+
+function copyMail() {
+  const el = document.getElementById('mail-body-text');
+  if (!el) return;
+  navigator.clipboard.writeText(el.innerText).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = 'コピーしました！';
+    btn.style.background = 'var(--teal)';
+    setTimeout(() => { btn.textContent = 'コピー'; btn.style.background = ''; }, 2000);
+  });
+}
+</script>
+</body>
+</html>
