@@ -725,8 +725,16 @@ function resetKey() {
   screen.classList.remove('hidden');
 }
 
-// 既にキーがある場合はセットアップ画面をスキップ
+// URLパラメーター ?key=... があれば自動セット、なければsessionStorageを確認
 window.addEventListener('DOMContentLoaded', () => {
+  const params = new URLSearchParams(window.location.search);
+  const urlKey = params.get('key');
+  if (urlKey) {
+    sessionStorage.setItem('gemini_api_key', urlKey);
+    // URLからキーを消してアドレスバーに残さない
+    const cleanUrl = window.location.pathname;
+    window.history.replaceState({}, '', cleanUrl);
+  }
   if (getApiKey()) {
     const screen = document.getElementById('setup-screen');
     screen.style.display = 'none';
